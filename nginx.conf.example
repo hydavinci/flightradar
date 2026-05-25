@@ -1,6 +1,14 @@
+# Nginx configuration example for Flight Radar
+# Copy to /etc/nginx/sites-available/flight-radar and adjust server_name
+
 server {
     listen 80;
-    server_name flight.bluemammoth.com;
+    listen 443 ssl;
+    server_name flightradar.example.com;  # <-- Change to your domain
+
+    # SSL certificate (self-signed for Cloudflare origin, or Let's Encrypt)
+    ssl_certificate /etc/nginx/ssl/flightradar.crt;
+    ssl_certificate_key /etc/nginx/ssl/flightradar.key;
 
     location / {
         proxy_pass http://127.0.0.1:3001;
