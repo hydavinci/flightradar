@@ -34,11 +34,12 @@ const map = new maplibregl.Map({
 
 // --- State ---
 let aircraft = [];
-let aircraftMap = new Map(); // icao24 -> aircraft object
+let aircraftMap = new Map();
 let filteredAircraft = [];
 let selectedIcao = null;
 let wsConnected = false;
 let filterText = '';
+let airportsData = []; // [iata, name, city, lat, lon]
 
 // --- Precomputed plane image for WebGL ---
 const PLANE_IMG_SIZE = 48;
@@ -258,6 +259,35 @@ map.on('load', () => {
   map.on('mouseenter', 'aircraft-layer', () => { map.getCanvas().style.cursor = 'pointer'; });
   map.on('mouseleave', 'aircraft-layer', () => { map.getCanvas().style.cursor = ''; });
 
+  // --- Airport layer ---
+  loadAirports();
+
+  // --- Route arc layer ---
+  map.addSource('route-arc', {
+    type: 'geojson',
+    data: { type: 'FeatureCollection', features: [] }
+  });
+  map.addLayer({
+    id: 'route-arc-layer',
+    type: 'line',
+    source: 'route-arc',
+    layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: {
+      'line-color': '#ff9800',
+      'line-width': 1.5,
+      'line-opacity': 0.5,
+      'line-dasharray': [4, 4]
+    }
+  }, 'trail-layer');
+
+  // --- 3D Terrain ---
+  map.addSource('terrain-source', {
+    type: 'raster-dem',
+    tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+    tileSize: 256,
+    encoding: 'terrarium'
+  });
+
   // Start WebSocket
   connect();
 });
@@ -315,6 +345,12 @@ function showDetail(f) {
   document.getElementById('detail-route').textContent =
     (f.origin && f.destination) ? `${f.origin} → ${f.destination}` : '-';
 
+  // Load plane photo
+  loadPlanePhoto(f.icao24, f.registration);
+
+  // Load route arc
+  loadRouteArc(f.origin, f.destination);
+
   // Position: right of aircraft
   positionDetail(f);
 }
@@ -361,6 +397,7 @@ function closeDetail() {
   panel.className = '';
   selectedIcao = null;
   map.getSource('trail')?.setData({ type: 'FeatureCollection', features: [] });
+  map.getSource('route-arc')?.setData({ type: 'FeatureCollection', features: [] });
   updateMap();
 }
 
@@ -390,6 +427,10 @@ function matchesFilter(plane) {
 function applyFilter() {
   filterText = document.getElementById('filter-input').value.trim();
   updateMap();
+
+  // Show autocomplete suggestions
+  const suggestions = getSearchSuggestions(filterText);
+  showSuggestions(suggestions);
 
   if (filterText && filteredAircraft.length > 0 && filteredAircraft.length <= 10) {
     if (filteredAircraft.length === 1) {
@@ -518,11 +559,192 @@ setInterval(async () => {
 }, 15000);
 
 // --- Expose globals ---
+// --- Airport layer ---
+async function loadAirports() {
+  try {
+    const resp = await fetch('/data/airports.json');
+    airportsData = await resp.json();
+    
+    const geojson = {
+      type: 'FeatureCollection',
+      features: airportsData.map(a => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [a[3], a[2] || a[3], a[3]][0] ? [a[4], a[3]] : [0,0] },
+        properties: { iata: a[0], name: a[1], city: a[2] }
+      })).filter(f => f.geometry.coordinates[0] && f.geometry.coordinates[1])
+    };
+    // Fix: airports format is [iata, name, city, lat, lon]
+    geojson.features = airportsData.map(a => ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [a[4], a[3]] },
+      properties: { iata: a[0], name: a[1], city: a[2] }
+    }));
+
+    map.addSource('airports', { type: 'geojson', data: geojson });
+    map.addLayer({
+      id: 'airports-layer',
+      type: 'symbol',
+      source: 'airports',
+      minzoom: 5,
+      layout: {
+        'text-field': ['get', 'iata'],
+        'text-font': ['Open Sans Regular'],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 5, 9, 10, 12],
+        'text-anchor': 'center',
+        'text-allow-overlap': false,
+        'icon-allow-overlap': false
+      },
+      paint: {
+        'text-color': currentTheme === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)',
+        'text-halo-color': currentTheme === 'dark' ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.8)',
+        'text-halo-width': 1
+      }
+    }, 'aircraft-layer');
+  } catch (e) {
+    console.error('Failed to load airports:', e);
+  }
+}
+
+// --- Route arc ---
+async function loadRouteArc(origin, destination) {
+  if (!origin || !destination || !airportsData.length) {
+    map.getSource('route-arc')?.setData({ type: 'FeatureCollection', features: [] });
+    return;
+  }
+  const orig = airportsData.find(a => a[0] === origin);
+  const dest = airportsData.find(a => a[0] === destination);
+  if (!orig || !dest) {
+    map.getSource('route-arc')?.setData({ type: 'FeatureCollection', features: [] });
+    return;
+  }
+  try {
+    const resp = await fetch(`/api/arc?lat1=${orig[3]}&lon1=${orig[4]}&lat2=${dest[3]}&lon2=${dest[4]}`);
+    const data = await resp.json();
+    if (data.arc) {
+      map.getSource('route-arc').setData({
+        type: 'FeatureCollection',
+        features: [{
+          type: 'Feature',
+          geometry: { type: 'LineString', coordinates: data.arc }
+        }]
+      });
+    }
+  } catch (e) {}
+}
+
+// --- Search autocomplete ---
+function getSearchSuggestions(query) {
+  if (!query || query.length < 2) return [];
+  const q = query.toUpperCase();
+  const results = [];
+  
+  // Match aircraft
+  for (const a of aircraft) {
+    if (results.length >= 8) break;
+    if (a.callsign?.toUpperCase().includes(q) ||
+        a.registration?.toUpperCase().includes(q) ||
+        a.type?.toUpperCase().includes(q)) {
+      results.push({
+        type: 'flight',
+        label: `${a.callsign || a.icao24} ${a.type ? '(' + a.type + ')' : ''}`,
+        sublabel: a.origin && a.destination ? `${a.origin} → ${a.destination}` : '',
+        icao24: a.icao24
+      });
+    }
+  }
+  
+  // Match airports
+  for (const a of airportsData) {
+    if (results.length >= 12) break;
+    if (a[0].includes(q) || a[1].toUpperCase().includes(q) || (a[2] && a[2].toUpperCase().includes(q))) {
+      results.push({
+        type: 'airport',
+        label: `${a[0]} - ${a[1]}`,
+        sublabel: a[2] || '',
+        lat: a[3], lon: a[4]
+      });
+    }
+  }
+  return results;
+}
+
+function showSuggestions(suggestions) {
+  let container = document.getElementById('search-suggestions');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'search-suggestions';
+    document.getElementById('filter-body').appendChild(container);
+  }
+  if (suggestions.length === 0) {
+    container.innerHTML = '';
+    container.style.display = 'none';
+    return;
+  }
+  container.style.display = 'block';
+  container.innerHTML = suggestions.map((s, i) => `
+    <div class="suggestion-item" onclick="selectSuggestion(${i})">
+      <span class="suggestion-icon">${s.type === 'flight' ? '✈' : '🏢'}</span>
+      <span class="suggestion-text">
+        <span class="suggestion-label">${s.label}</span>
+        ${s.sublabel ? `<span class="suggestion-sub">${s.sublabel}</span>` : ''}
+      </span>
+    </div>
+  `).join('');
+  window._suggestions = suggestions;
+}
+
+function selectSuggestion(index) {
+  const s = window._suggestions[index];
+  if (!s) return;
+  if (s.type === 'flight') {
+    selectFlight(s.icao24);
+    const f = aircraftMap.get(s.icao24);
+    if (f) map.flyTo({ center: [f.lon, f.lat], zoom: Math.max(map.getZoom(), 7) });
+  } else if (s.type === 'airport') {
+    map.flyTo({ center: [s.lon, s.lat], zoom: 10 });
+  }
+  document.getElementById('search-suggestions').style.display = 'none';
+}
+
+// --- Plane photo (planespotters.net) ---
+async function loadPlanePhoto(icao24, reg) {
+  const photoEl = document.getElementById('detail-photo');
+  if (!photoEl) return;
+  photoEl.innerHTML = '';
+  try {
+    const query = reg || icao24;
+    const resp = await fetch(`https://api.planespotters.net/pub/photos/hex/${icao24}`, {
+      headers: { 'User-Agent': 'FlightRadar/1.0 (https://flightradar.graymammoth.com)' }
+    });
+    const data = await resp.json();
+    if (data.photos && data.photos.length > 0) {
+      const photo = data.photos[0];
+      photoEl.innerHTML = `<img src="${photo.thumbnail_large.src}" alt="${photo.photographer}" title="© ${photo.photographer}">`;
+    }
+  } catch (e) {}
+}
+
+// --- 3D terrain toggle ---
+let terrain3DEnabled = false;
+function toggle3D() {
+  terrain3DEnabled = !terrain3DEnabled;
+  if (terrain3DEnabled) {
+    map.setTerrain({ source: 'terrain-source', exaggeration: 1.5 });
+    map.easeTo({ pitch: 60 });
+  } else {
+    map.setTerrain(null);
+    map.easeTo({ pitch: 0 });
+  }
+  document.getElementById('btn-3d').classList.toggle('active', terrain3DEnabled);
+}
+
 window.closeDetail = closeDetail;
 window.toggleFilter = toggleFilter;
 window.applyFilter = applyFilter;
 window.clearFilter = clearFilter;
 window.updateStatsBar = updateStatsBar;
+window.selectSuggestion = selectSuggestion;
+window.toggle3D = toggle3D;
 
 // Init language
 updateUI();

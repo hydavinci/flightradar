@@ -49,6 +49,39 @@ app.get('/api/trail/:icao24', async (req, res) => {
   res.json({ icao24: req.params.icao24, trail });
 });
 
+// Great circle arc between two points
+app.get('/api/arc', (req, res) => {
+  const { lat1, lon1, lat2, lon2, points = 60 } = req.query;
+  if (!lat1 || !lon1 || !lat2 || !lon2) {
+    return res.status(400).json({ error: 'Need lat1, lon1, lat2, lon2' });
+  }
+  const arc = computeGreatCircle(+lat1, +lon1, +lat2, +lon2, +points);
+  res.json({ arc });
+});
+
+function computeGreatCircle(lat1, lon1, lat2, lon2, numPoints) {
+  const toRad = d => d * Math.PI / 180;
+  const toDeg = r => r * 180 / Math.PI;
+  const coords = [];
+  const φ1 = toRad(lat1), λ1 = toRad(lon1);
+  const φ2 = toRad(lat2), λ2 = toRad(lon2);
+  const d = 2 * Math.asin(Math.sqrt(
+    Math.sin((φ2 - φ1) / 2) ** 2 +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin((λ2 - λ1) / 2) ** 2
+  ));
+  if (d < 0.0001) return [[lon1, lat1], [lon2, lat2]];
+  for (let i = 0; i <= numPoints; i++) {
+    const f = i / numPoints;
+    const A = Math.sin((1 - f) * d) / Math.sin(d);
+    const B = Math.sin(f * d) / Math.sin(d);
+    const x = A * Math.cos(φ1) * Math.cos(λ1) + B * Math.cos(φ2) * Math.cos(λ2);
+    const y = A * Math.cos(φ1) * Math.sin(λ1) + B * Math.cos(φ2) * Math.sin(λ2);
+    const z = A * Math.sin(φ1) + B * Math.sin(φ2);
+    coords.push([toDeg(Math.atan2(y, x)), toDeg(Math.atan2(z, Math.sqrt(x * x + y * y)))]);
+  }
+  return coords;
+}
+
 app.get('/api/health', async (req, res) => {
   const stats = cache.getStats();
   const redisOk = await trailStore.isHealthy();
