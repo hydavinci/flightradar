@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flight Radar | GrayMammoth</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✈️</text></svg>">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+  <link rel="stylesheet" href="/css/style.css?v=39">
+</head>
+<body>
+  <div id="map"></div>
+
+  <!-- Flight detail panel -->
+  <div id="flight-detail">
+    <button class="close-btn" onclick="closeDetail()">✕</button>
+    <div class="detail-header">
+      <div class="detail-callsign" id="detail-callsign"></div>
+      <div class="detail-subtitle" id="detail-subtitle"></div>
+    </div>
+    <div class="detail-grid">
+      <div class="detail-field"><span class="label" data-i18n="icao">ICAO</span><span class="value" id="detail-icao"></span></div>
+      <div class="detail-field"><span class="label" data-i18n="type">Type</span><span class="value" id="detail-type"></span></div>
+      <div class="detail-field"><span class="label" data-i18n="reg">Reg</span><span class="value" id="detail-reg"></span></div>
+      <div class="detail-field"><span class="label" data-i18n="country">Country</span><span class="value" id="detail-country"></span></div>
+      <div class="detail-field"><span class="label" data-i18n="altitude">Altitude</span><span class="value" id="detail-alt"></span></div>
+      <div class="detail-field"><span class="label" data-i18n="speed">Speed</span><span class="value" id="detail-speed"></span></div>
+      <div class="detail-field"><span class="label" data-i18n="heading">Heading</span><span class="value" id="detail-heading"></span></div>
+      <div class="detail-field"><span class="label" data-i18n="vs">V/S</span><span class="value" id="detail-vrate"></span></div>
+      <div class="detail-field"><span class="label" data-i18n="squawk">Squawk</span><span class="value" id="detail-squawk"></span></div>
+      <div class="detail-field"><span class="label" data-i18n="route">Route</span><span class="value" id="detail-route"></span></div>
+    </div>
+  </div>
+
+  <!-- Filter panel -->
+  <div id="filter-panel">
+    <div class="filter-toggle btn-panel" id="filter-toggle" onclick="toggleFilter()">
+      <span>🔍 Filter</span>
+    </div>
+    <div class="filter-body" id="filter-body">
+      <input type="text" id="filter-input" placeholder="Callsign, route (e.g. PEK-SHA), type" oninput="applyFilter()">
+      <div class="filter-stats" id="filter-stats"></div>
+      <button class="filter-clear" id="btn-clear" onclick="clearFilter()">Clear</button>
+    </div>
+  </div>
+
+  <!-- Info panel -->
+  <div id="info-panel">
+    <h3 id="info-title">✈️ Flight Radar</h3>
+    <div class="stat">
+      <span id="label-aircraft">Aircraft</span>
+      <span class="stat-value" id="flight-count">0</span>
+    </div>
+    <div class="stat">
+      <span><span id="status-dot"></span><span id="status-text">Connecting...</span></span>
+    </div>
+    <div class="stat-sources" id="stat-sources"></div>
+  </div>
+
+  <!-- Language selector -->
+  <div id="lang-toggle">
+    <button id="lang-current" class="btn-panel" onclick="toggleLangDropdown()">English</button>
+    <div id="lang-dropdown">
+      <div class="lang-option" onclick="setLang('en')">English</div>
+      <div class="lang-option" onclick="setLang('zh')">中文</div>
+      <div class="lang-option" onclick="setLang('ja')">日本語</div>
+    </div>
+  </div>
+
+  <!-- Theme toggle -->
+  <div id="theme-toggle">
+    <button id="theme-btn" class="btn-panel" onclick="toggleTheme()">☀️</button>
+  </div>
+
+  <!-- Stats bar -->
+  <div id="stats-bar">
+    <span id="stats-content"></span>
+  </div>
+
+  <!-- Legend -->
+  <div id="legend">
+    <div class="legend-title" id="legend-title">Altitude</div>
+    <div class="legend-item"><span class="legend-color" style="background:#9e9e9e"></span><span id="legend-ground">Ground</span></div>
+    <div class="legend-item"><span class="legend-color" style="background:#4caf50"></span><span id="legend-low">&lt; 5,000 ft</span></div>
+    <div class="legend-item"><span class="legend-color" style="background:#00bcd4"></span><span id="legend-mid">5,000–25,000 ft</span></div>
+    <div class="legend-item"><span class="legend-color" style="background:#9c27b0"></span><span id="legend-high">25,000–35,000 ft</span></div>
+    <div class="legend-item"><span class="legend-color" style="background:#2196f3"></span><span id="legend-cruise">&gt; 35,000 ft</span></div>
+  </div>
+
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="/js/i18n.js?v=38"></script>
+  <script src="/js/app.js?v=38"></script>
+</body>
+</html>
