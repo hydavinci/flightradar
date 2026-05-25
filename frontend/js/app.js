@@ -306,14 +306,6 @@ map.on('load', () => {
     }
   }, 'trail-layer');
 
-  // --- 3D Terrain ---
-  map.addSource('terrain-source', {
-    type: 'raster-dem',
-    tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
-    tileSize: 256,
-    encoding: 'terrarium'
-  });
-
   // Start WebSocket
   connect();
 });
@@ -751,26 +743,12 @@ async function loadPlanePhoto(icao24, reg) {
 }
 
 // --- 3D terrain toggle ---
-let terrain3DEnabled = false;
-function toggle3D() {
-  terrain3DEnabled = !terrain3DEnabled;
-  if (terrain3DEnabled) {
-    map.setTerrain({ source: 'terrain-source', exaggeration: 1.5 });
-    map.easeTo({ pitch: 60 });
-  } else {
-    map.setTerrain(null);
-    map.easeTo({ pitch: 0 });
-  }
-  document.getElementById('btn-3d').classList.toggle('active', terrain3DEnabled);
-}
-
 window.closeDetail = closeDetail;
 window.toggleFilter = toggleFilter;
 window.applyFilter = applyFilter;
 window.clearFilter = clearFilter;
 window.updateStatsBar = updateStatsBar;
 window.selectSuggestion = selectSuggestion;
-window.toggle3D = toggle3D;
 
 // Init language
 updateUI();

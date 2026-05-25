@@ -240,11 +240,6 @@ body {
 }
 #theme-btn { width: 36px; padding: 0; font-size: 16px; }
 
-#btn-3d-wrap {
-  position: relative;
-}
-#btn-3d { width: 36px; padding: 0; font-size: 12px; font-weight: 700; }
-#btn-3d.active { background: rgba(79, 195, 247, 0.3); border-color: #4fc3f7; color: #4fc3f7; }
 
 /* Detail photo */
 #detail-photo {
