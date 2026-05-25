@@ -351,3 +351,69 @@ body {
 .theme-light #stats-bar { color: #666; }
 .theme-light .close-btn { color: #999; }
 .theme-light .close-btn:hover { color: #333; }
+
+/* Hover tooltip */
+.flight-tooltip .maplibregl-popup-content {
+  background: rgba(12, 12, 20, 0.92);
+  color: #e0e0e0;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  border: 1px solid rgba(79, 195, 247, 0.2);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+.flight-tooltip .maplibregl-popup-tip {
+  border-top-color: rgba(12, 12, 20, 0.92);
+}
+.theme-light .flight-tooltip .maplibregl-popup-content {
+  background: rgba(255,255,255,0.95);
+  color: #333;
+  border-color: rgba(0,0,0,0.1);
+}
+.theme-light .flight-tooltip .maplibregl-popup-tip {
+  border-top-color: rgba(255,255,255,0.95);
+}
+
+/* Airport detail popup */
+.airport-detail-popup .maplibregl-popup-content {
+  background: rgba(12, 12, 20, 0.95);
+  color: #e0e0e0;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(79, 195, 247, 0.2);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  max-height: 400px;
+  overflow-y: auto;
+}
+.airport-detail-popup .maplibregl-popup-tip {
+  border-top-color: rgba(12, 12, 20, 0.95);
+}
+.airport-popup h3 { color: #4fc3f7; font-size: 16px; margin-bottom: 2px; }
+.airport-name { font-size: 13px; color: #ccc; }
+.airport-city { font-size: 11px; color: #888; margin-bottom: 10px; }
+.board-section { margin-top: 8px; }
+.board-title { font-size: 11px; font-weight: 600; color: #aaa; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.board-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.board-flight { color: #4fc3f7; font-weight: 500; min-width: 70px; }
+.board-dest { color: #ccc; flex: 1; text-align: center; }
+.board-alt { color: #888; min-width: 70px; text-align: right; font-size: 11px; }
+.board-more { font-size: 10px; color: #666; text-align: center; margin-top: 4px; }
+.board-empty { font-size: 12px; color: #666; text-align: center; padding: 10px 0; }
+
+.theme-light .airport-detail-popup .maplibregl-popup-content {
+  background: rgba(255,255,255,0.97);
+  color: #333;
+  border-color: rgba(0,0,0,0.1);
+}
+.theme-light .airport-popup h3 { color: #1565c0; }
+.theme-light .airport-name { color: #444; }
+.theme-light .board-flight { color: #1565c0; }
+.theme-light .board-dest { color: #555; }
+.theme-light .board-row { border-bottom-color: rgba(0,0,0,0.05); }
+
+/* Airline logo in detail */
+.detail-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.detail-logo img { width: 32px; height: 32px; border-radius: 4px; object-fit: contain; }
+
+/* Night shadow */
+#night-shadow { mix-blend-mode: multiply; }

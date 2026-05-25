@@ -21,6 +21,10 @@ app.use(express.static(path.join(__dirname, '../frontend'), {
     if (filePath.endsWith('.html')) {
       res.setHeader('Cache-Control', 'no-cache');
     }
+    if (filePath.endsWith('.pbf')) {
+      res.setHeader('Content-Type', 'application/x-protobuf');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+    }
   }
 }));
 

@@ -6,7 +6,7 @@
   <title>Flight Radar | GrayMammoth</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✈️</text></svg>">
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
-  <link rel="stylesheet" href="/css/style.css?v=45">
+  <link rel="stylesheet" href="/css/style.css?v=60">
 </head>
 <body>
   <div id="map"></div>
@@ -16,8 +16,11 @@
     <button class="close-btn" onclick="closeDetail()">✕</button>
     <div id="detail-photo"></div>
     <div class="detail-header">
-      <div class="detail-callsign" id="detail-callsign"></div>
-      <div class="detail-subtitle" id="detail-subtitle"></div>
+      <div id="detail-logo" class="detail-logo"></div>
+      <div>
+        <div class="detail-callsign" id="detail-callsign"></div>
+        <div class="detail-subtitle" id="detail-subtitle"></div>
+      </div>
     </div>
     <div class="detail-grid">
       <div class="detail-field"><span class="label" data-i18n="icao">ICAO</span><span class="value" id="detail-icao"></span></div>
@@ -95,7 +98,7 @@
   </div>
 
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-  <script src="/js/i18n.js?v=55"></script>
-  <script src="/js/app.js?v=57"></script>
+  <script src="/js/i18n.js?v=70"></script>
+  <script src="/js/app.js?v=72"></script>
 </body>
 </html>

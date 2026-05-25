@@ -8,7 +8,7 @@ const map = new maplibregl.Map({
   container: 'map',
   style: {
     version: 8,
-    glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+    glyphs: '/fonts/{fontstack}/{range}.pbf',
     sources: {
       'tiles-dark': {
         type: 'raster',
@@ -226,17 +226,20 @@ map.on('load', () => {
       'icon-image': ['get', 'icon'],
       'icon-size': [
         'interpolate', ['linear'], ['zoom'],
-        2, 0.35,
-        5, 0.5,
+        2, 0.3,
+        4, 0.4,
+        6, 0.55,
         8, 0.7,
-        12, 0.9
+        10, 0.85,
+        12, 1.0,
+        14, 1.2
       ],
       'icon-rotate': ['get', 'heading'],
       'icon-rotation-alignment': 'map',
       'icon-allow-overlap': true,
       'icon-ignore-placement': true,
       'text-field': ['step', ['zoom'], '', 7, ['get', 'callsign']],
-      'text-font': ['Open Sans Regular'],
+      'text-font': ['opensans'],
       'text-size': 10,
       'text-offset': [1.2, 0],
       'text-anchor': 'left',
@@ -281,9 +284,43 @@ map.on('load', () => {
     if (features.length === 0) closeDetail();
   });
 
-  // Cursor
-  map.on('mouseenter', 'aircraft-layer', () => { map.getCanvas().style.cursor = 'pointer'; });
-  map.on('mouseleave', 'aircraft-layer', () => { map.getCanvas().style.cursor = ''; });
+  // Cursor + hover tooltip
+  const tooltip = new maplibregl.Popup({
+    closeButton: false,
+    closeOnClick: false,
+    offset: [0, -10],
+    className: 'flight-tooltip'
+  });
+
+  map.on('mouseenter', 'aircraft-layer', (e) => {
+    map.getCanvas().style.cursor = 'pointer';
+    if (e.features.length > 0) {
+      const f = e.features[0].properties;
+      const ac = aircraftMap.get(f.icao24);
+      if (ac) {
+        const alt = ac.altitude ? `${ac.altitude.toLocaleString()} ft` : 'Ground';
+        const html = `<strong>${ac.callsign || ac.icao24.toUpperCase()}</strong><br>${alt} · ${ac.velocity ? Math.round(ac.velocity) + ' kts' : ''}`;
+        tooltip.setLngLat(e.lngLat).setHTML(html).addTo(map);
+      }
+    }
+  });
+
+  map.on('mousemove', 'aircraft-layer', (e) => {
+    if (e.features.length > 0) {
+      const f = e.features[0].properties;
+      const ac = aircraftMap.get(f.icao24);
+      if (ac) {
+        const alt = ac.altitude ? `${ac.altitude.toLocaleString()} ft` : 'Ground';
+        const html = `<strong>${ac.callsign || ac.icao24.toUpperCase()}</strong><br>${alt} · ${ac.velocity ? Math.round(ac.velocity) + ' kts' : ''}`;
+        tooltip.setLngLat(e.lngLat).setHTML(html);
+      }
+    }
+  });
+
+  map.on('mouseleave', 'aircraft-layer', () => {
+    map.getCanvas().style.cursor = '';
+    tooltip.remove();
+  });
 
   // --- Airport layer ---
   loadAirports();
@@ -345,6 +382,16 @@ function showDetail(f) {
   panel.style.display = 'block';
 
   document.getElementById('detail-callsign').textContent = f.callsign || f.icao24.toUpperCase();
+  // Airline logo
+  const logoEl = document.getElementById('detail-logo');
+  if (logoEl) {
+    const airlineCode = f.airline || (f.callsign ? f.callsign.slice(0, 3) : '');
+    if (airlineCode) {
+      logoEl.innerHTML = `<img src="${getAirlineLogo(airlineCode)}" onerror="this.style.display='none'" alt="">`;
+    } else {
+      logoEl.innerHTML = '';
+    }
+  }
   document.getElementById('detail-subtitle').textContent =
     [f.type, f.registration, f.airline].filter(Boolean).join(' · ');
   document.getElementById('detail-icao').textContent = f.icao24.toUpperCase();
@@ -583,41 +630,48 @@ async function loadAirports() {
     const resp = await fetch('/data/airports.json');
     airportsData = await resp.json();
     
+    // Format: [iata, name, city, lat, lon]
     const geojson = {
       type: 'FeatureCollection',
       features: airportsData.map(a => ({
         type: 'Feature',
-        geometry: { type: 'Point', coordinates: [a[3], a[2] || a[3], a[3]][0] ? [a[4], a[3]] : [0,0] },
+        geometry: { type: 'Point', coordinates: [a[4], a[3]] },
         properties: { iata: a[0], name: a[1], city: a[2] }
-      })).filter(f => f.geometry.coordinates[0] && f.geometry.coordinates[1])
+      }))
     };
-    // Fix: airports format is [iata, name, city, lat, lon]
-    geojson.features = airportsData.map(a => ({
-      type: 'Feature',
-      geometry: { type: 'Point', coordinates: [a[4], a[3]] },
-      properties: { iata: a[0], name: a[1], city: a[2] }
-    }));
 
     map.addSource('airports', { type: 'geojson', data: geojson });
     map.addLayer({
       id: 'airports-layer',
       type: 'symbol',
       source: 'airports',
-      minzoom: 5,
+      minzoom: 4,
       layout: {
-        'text-field': ['get', 'iata'],
-        'text-font': ['Open Sans Regular'],
-        'text-size': ['interpolate', ['linear'], ['zoom'], 5, 9, 10, 12],
+        'text-field': '{iata}',
+        'text-font': ['opensans'],
+        'text-size': { stops: [[4, 8], [6, 10], [8, 13], [10, 15], [14, 18]] },
         'text-anchor': 'center',
-        'text-allow-overlap': false,
-        'icon-allow-overlap': false
+        'text-allow-overlap': true,
+        'text-ignore-placement': true
       },
       paint: {
-        'text-color': currentTheme === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)',
-        'text-halo-color': currentTheme === 'dark' ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.8)',
-        'text-halo-width': 1
+        'text-color': '#ffab00',
+        'text-halo-color': 'rgba(0,0,0,0.85)',
+        'text-halo-width': 1.5
       }
-    }, 'aircraft-layer');
+    });
+
+    // Airport click - show detail + departure/arrival board
+    map.on('click', 'airports-layer', (e) => {
+      if (e.features.length > 0) {
+        const f = e.features[0].properties;
+        showAirportDetail(f.iata, f.name, f.city, e.lngLat);
+      }
+    });
+
+    // Airport hover cursor
+    map.on('mouseenter', 'airports-layer', () => { map.getCanvas().style.cursor = 'pointer'; });
+    map.on('mouseleave', 'airports-layer', () => { map.getCanvas().style.cursor = ''; });
   } catch (e) {
     console.error('Failed to load airports:', e);
   }
@@ -743,6 +797,128 @@ async function loadPlanePhoto(icao24, reg) {
 }
 
 // --- 3D terrain toggle ---
+// --- Airport detail + departure/arrival board ---
+function showAirportDetail(iata, name, city, lngLat) {
+  // Find flights departing from / arriving at this airport
+  const departures = aircraft.filter(a => a.origin === iata);
+  const arrivals = aircraft.filter(a => a.destination === iata);
+
+  let html = `<div class="airport-popup">`;
+  html += `<h3>🏢 ${iata}</h3>`;
+  html += `<div class="airport-name">${name}</div>`;
+  html += `<div class="airport-city">${city}</div>`;
+
+  if (departures.length > 0) {
+    html += `<div class="board-section"><div class="board-title">✈️ Departures (${departures.length})</div>`;
+    departures.slice(0, 8).forEach(a => {
+      html += `<div class="board-row"><span class="board-flight">${a.callsign || a.icao24}</span><span class="board-dest">→ ${a.destination || '?'}</span><span class="board-alt">${a.altitude ? a.altitude.toLocaleString() + ' ft' : 'GND'}</span></div>`;
+    });
+    if (departures.length > 8) html += `<div class="board-more">+${departures.length - 8} more</div>`;
+    html += `</div>`;
+  }
+
+  if (arrivals.length > 0) {
+    html += `<div class="board-section"><div class="board-title">�\uDEEC Arrivals (${arrivals.length})</div>`;
+    arrivals.slice(0, 8).forEach(a => {
+      html += `<div class="board-row"><span class="board-flight">${a.callsign || a.icao24}</span><span class="board-dest">← ${a.origin || '?'}</span><span class="board-alt">${a.altitude ? a.altitude.toLocaleString() + ' ft' : 'GND'}</span></div>`;
+    });
+    if (arrivals.length > 8) html += `<div class="board-more">+${arrivals.length - 8} more</div>`;
+    html += `</div>`;
+  }
+
+  if (departures.length === 0 && arrivals.length === 0) {
+    html += `<div class="board-empty">No tracked flights</div>`;
+  }
+
+  html += `</div>`;
+
+  new maplibregl.Popup({ maxWidth: '320px', className: 'airport-detail-popup' })
+    .setLngLat(lngLat)
+    .setHTML(html)
+    .addTo(map);
+}
+
+// --- Night shadow overlay ---
+function addNightShadow() {
+  const canvas = document.createElement('canvas');
+  canvas.id = 'night-shadow';
+  canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;opacity:0.25;';
+  document.getElementById('map').appendChild(canvas);
+  drawNightShadow();
+  setInterval(drawNightShadow, 60000); // update every minute
+  map.on('move', drawNightShadow);
+  map.on('resize', drawNightShadow);
+}
+
+function drawNightShadow() {
+  const canvas = document.getElementById('night-shadow');
+  if (!canvas) return;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, rect.width, rect.height);
+
+  // Calculate subsolar point
+  const now = new Date();
+  const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+  const declination = -23.45 * Math.cos((360 / 365) * (dayOfYear + 10) * Math.PI / 180);
+  const hourAngle = ((now.getUTCHours() + now.getUTCMinutes() / 60) / 24 * 360) - 180;
+  const sunLon = -hourAngle;
+  const sunLat = declination;
+
+  // Draw night side
+  ctx.fillStyle = 'rgba(0, 0, 30, 1)';
+  ctx.beginPath();
+
+  const points = 72;
+  for (let i = 0; i <= points; i++) {
+    const angle = (i / points) * 360;
+    const rad = angle * Math.PI / 180;
+    // Terminator point: 90 degrees from subsolar point
+    const lat = Math.asin(Math.sin(sunLat * Math.PI / 180) * Math.cos(Math.PI / 2) +
+      Math.cos(sunLat * Math.PI / 180) * Math.sin(Math.PI / 2) * Math.cos(rad)) * 180 / Math.PI;
+    let lon = sunLon + Math.atan2(
+      Math.sin(rad) * Math.sin(Math.PI / 2) * Math.cos(sunLat * Math.PI / 180),
+      Math.cos(Math.PI / 2) - Math.sin(sunLat * Math.PI / 180) * Math.sin(lat * Math.PI / 180)
+    ) * 180 / Math.PI;
+    // Normalize lon
+    while (lon > 180) lon -= 360;
+    while (lon < -180) lon += 360;
+
+    const pixel = map.project([lon, lat]);
+    if (i === 0) ctx.moveTo(pixel.x, pixel.y);
+    else ctx.lineTo(pixel.x, pixel.y);
+  }
+
+  // Close the night polygon via the bottom/top of screen
+  // Determine if sun is in northern or southern hemisphere to close correctly
+  const sunPixel = map.project([sunLon, sunLat]);
+  const mapCenter = map.project(map.getCenter().toArray());
+  
+  // Close via opposite side of sun
+  if (sunPixel.y < rect.height / 2) {
+    // Sun is in upper half -> night is bottom
+    ctx.lineTo(rect.width, rect.height);
+    ctx.lineTo(0, rect.height);
+  } else {
+    // Sun is in lower half -> night is top
+    ctx.lineTo(rect.width, 0);
+    ctx.lineTo(0, 0);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
+// --- Airline logo ---
+function getAirlineLogo(icaoCode) {
+  if (!icaoCode) return '';
+  // Use free logo from FlightAware's public assets or airline-logos github
+  return `https://content.airhex.com/content/logos/airlines_${icaoCode}_50_50_s.png`;
+}
+
 window.closeDetail = closeDetail;
 window.toggleFilter = toggleFilter;
 window.applyFilter = applyFilter;
