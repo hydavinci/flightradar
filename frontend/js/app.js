@@ -10,20 +10,38 @@ const map = new maplibregl.Map({
     version: 8,
     glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
     sources: {
-      'carto-dark': {
+      'tiles-dark': {
         type: 'raster',
-        tiles: THEMES[currentTheme].tiles,
+        tiles: THEMES.dark.tiles,
         tileSize: 256,
         attribution: '© OSM © CARTO | Data: adsb.lol + adsb.fi + FR24'
+      },
+      'tiles-light': {
+        type: 'raster',
+        tiles: THEMES.light.tiles,
+        tileSize: 256
       }
     },
-    layers: [{
-      id: 'carto-dark-layer',
-      type: 'raster',
-      source: 'carto-dark',
-      minzoom: 0,
-      maxzoom: 18
-    }]
+    layers: [
+      {
+        id: 'dark-layer',
+        type: 'raster',
+        source: 'tiles-dark',
+        minzoom: 0,
+        maxzoom: 18,
+        layout: { visibility: currentTheme === 'dark' ? 'visible' : 'none' },
+        paint: { 'raster-fade-duration': 0 }
+      },
+      {
+        id: 'light-layer',
+        type: 'raster',
+        source: 'tiles-light',
+        minzoom: 0,
+        maxzoom: 18,
+        layout: { visibility: currentTheme === 'light' ? 'visible' : 'none' },
+        paint: { 'raster-fade-duration': 0 }
+      }
+    ]
   },
   center: [110, 30],
   zoom: 3.5,
@@ -138,6 +156,7 @@ function addPlaneImages() {
   ];
 
   for (const { name, color, size } of images) {
+    if (map.hasImage(name)) map.removeImage(name);
     const canvas = createPlaneImage(color, name, size);
     const ctx = canvas.getContext('2d');
     const imgData = ctx.getImageData(0, 0, size, size);
@@ -184,6 +203,13 @@ function aircraftToGeoJSON(planes) {
 // --- Map loaded ---
 map.on('load', () => {
   addPlaneImages();
+
+  // Re-add images if they get lost (e.g. after style change)
+  map.on('styleimagemissing', (e) => {
+    if (e.id.startsWith('plane-')) {
+      addPlaneImages();
+    }
+  });
 
   // Aircraft source
   map.addSource('aircraft', {

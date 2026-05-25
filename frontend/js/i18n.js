@@ -104,20 +104,20 @@ const LANG_LABELS = {
 const THEMES = {
   dark: {
     tiles: [
-      'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-      'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-      'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-      'https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png'
+      'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+      'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+      'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+      'https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
     ],
     bodyClass: '',
     label: { en: '🌙', zh: '🌙', ja: '🌙' }
   },
   light: {
     tiles: [
-      'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-      'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-      'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-      'https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png'
+      'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+      'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+      'https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+      'https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png'
     ],
     bodyClass: 'theme-light',
     label: { en: '☀️', zh: '☀️', ja: '☀️' }
@@ -137,9 +137,15 @@ function applyTheme() {
   document.body.className = theme.bodyClass;
   document.getElementById('theme-btn').textContent = currentTheme === 'dark' ? '☀️' : '🌙';
 
-  // Update map tiles if map is ready
-  if (typeof map !== 'undefined' && map.getSource && map.getSource('carto-dark')) {
-    map.getSource('carto-dark').setTiles(theme.tiles);
+  // Switch layer visibility (instant, no tile reload)
+  if (typeof map !== 'undefined' && map.getLayer) {
+    try {
+      map.setLayoutProperty('dark-layer', 'visibility', currentTheme === 'dark' ? 'visible' : 'none');
+      map.setLayoutProperty('light-layer', 'visibility', currentTheme === 'light' ? 'visible' : 'none');
+    } catch(e) {}
+    // Re-add plane images in case they were lost
+    if (typeof addPlaneImages === 'function') addPlaneImages();
+    if (typeof updateMap === 'function') updateMap();
   }
 }
 
