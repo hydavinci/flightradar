@@ -799,43 +799,56 @@ async function loadPlanePhoto(icao24, reg) {
 // --- 3D terrain toggle ---
 // --- Airport detail + departure/arrival board ---
 function showAirportDetail(iata, name, city, lngLat) {
+  // Close any existing flight detail
+  closeDetail();
+  
   // Find flights departing from / arriving at this airport
   const departures = aircraft.filter(a => a.origin === iata);
   const arrivals = aircraft.filter(a => a.destination === iata);
 
-  let html = `<div class="airport-popup">`;
-  html += `<h3>🏢 ${iata}</h3>`;
-  html += `<div class="airport-name">${name}</div>`;
-  html += `<div class="airport-city">${city}</div>`;
-
+  const panel = document.getElementById('flight-detail');
+  
+  // Build content
+  let gridHTML = `<div class="detail-header"><div><div class="detail-callsign">🏢 ${iata}</div><div class="detail-subtitle">${name} · ${city}</div></div></div>`;
+  
   if (departures.length > 0) {
-    html += `<div class="board-section"><div class="board-title">✈️ Departures (${departures.length})</div>`;
+    gridHTML += `<div class="board-section"><div class="board-title">✈️ Departures (${departures.length})</div>`;
     departures.slice(0, 8).forEach(a => {
-      html += `<div class="board-row"><span class="board-flight">${a.callsign || a.icao24}</span><span class="board-dest">→ ${a.destination || '?'}</span><span class="board-alt">${a.altitude ? a.altitude.toLocaleString() + ' ft' : 'GND'}</span></div>`;
+      gridHTML += `<div class="board-row"><span class="board-flight">${a.callsign || a.icao24}</span><span class="board-dest">→ ${a.destination || '?'}</span><span class="board-alt">${a.altitude ? a.altitude.toLocaleString() + ' ft' : 'GND'}</span></div>`;
     });
-    if (departures.length > 8) html += `<div class="board-more">+${departures.length - 8} more</div>`;
-    html += `</div>`;
+    if (departures.length > 8) gridHTML += `<div class="board-more">+${departures.length - 8} more</div>`;
+    gridHTML += `</div>`;
   }
 
   if (arrivals.length > 0) {
-    html += `<div class="board-section"><div class="board-title">�\uDEEC Arrivals (${arrivals.length})</div>`;
+    gridHTML += `<div class="board-section"><div class="board-title">🛬 Arrivals (${arrivals.length})</div>`;
     arrivals.slice(0, 8).forEach(a => {
-      html += `<div class="board-row"><span class="board-flight">${a.callsign || a.icao24}</span><span class="board-dest">← ${a.origin || '?'}</span><span class="board-alt">${a.altitude ? a.altitude.toLocaleString() + ' ft' : 'GND'}</span></div>`;
+      gridHTML += `<div class="board-row"><span class="board-flight">${a.callsign || a.icao24}</span><span class="board-dest">← ${a.origin || '?'}</span><span class="board-alt">${a.altitude ? a.altitude.toLocaleString() + ' ft' : 'GND'}</span></div>`;
     });
-    if (arrivals.length > 8) html += `<div class="board-more">+${arrivals.length - 8} more</div>`;
-    html += `</div>`;
+    if (arrivals.length > 8) gridHTML += `<div class="board-more">+${arrivals.length - 8} more</div>`;
+    gridHTML += `</div>`;
   }
 
   if (departures.length === 0 && arrivals.length === 0) {
-    html += `<div class="board-empty">No tracked flights</div>`;
+    gridHTML += `<div class="board-empty">No tracked flights</div>`;
   }
 
-  html += `</div>`;
+  // Reuse flight-detail panel
+  panel.innerHTML = `<button class="close-btn" onclick="closeDetail()">✕</button>${gridHTML}`;
+  panel.className = 'visible';
+  panel.style.display = 'block';
 
-  new maplibregl.Popup({ maxWidth: '320px', className: 'airport-detail-popup' })
-    .setLngLat(lngLat)
-    .setHTML(html)
-    .addTo(map);
+  // Position like flight detail
+  const point = map.project(lngLat);
+  const mapRect = map.getContainer().getBoundingClientRect();
+  let left = point.x + 20;
+  let top = point.y - 20;
+  const panelW = 320, panelH = 350;
+  if (left + panelW > mapRect.width) left = point.x - panelW - 20;
+  if (top + panelH > mapRect.height) top = mapRect.height - panelH - 10;
+  if (top < 10) top = 10;
+  panel.style.left = left + 'px';
+  panel.style.top = top + 'px';
 }
 
 // --- Night shadow overlay ---
