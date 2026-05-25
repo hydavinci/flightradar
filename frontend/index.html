@@ -6,7 +6,7 @@
   <title>Flight Radar | GrayMammoth</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✈️</text></svg>">
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
-  <link rel="stylesheet" href="/css/style.css?v=40">
+  <link rel="stylesheet" href="/css/style.css?v=45">
 </head>
 <body>
   <div id="map"></div>
@@ -33,17 +33,6 @@
     </div>
   </div>
 
-  <!-- Filter panel -->
-  <div id="filter-panel">
-    <div class="filter-toggle btn-panel" id="filter-toggle" onclick="toggleFilter()">
-      <span>🔍 Filter</span>
-    </div>
-    <div class="filter-body" id="filter-body">
-      <input type="text" id="filter-input" placeholder="Callsign, route (e.g. PEK-SHA), type" oninput="applyFilter()">
-      <div class="filter-stats" id="filter-stats"></div>
-      <button class="filter-clear" id="btn-clear" onclick="clearFilter()">Clear</button>
-    </div>
-  </div>
 
   <!-- Info panel -->
   <div id="info-panel">
@@ -58,25 +47,39 @@
     <div class="stat-sources" id="stat-sources"></div>
   </div>
 
-  <!-- Language selector -->
-  <div id="lang-toggle">
-    <button id="lang-current" class="btn-panel" onclick="toggleLangDropdown()">English</button>
-    <div id="lang-dropdown">
-      <div class="lang-option" onclick="setLang('en')">English</div>
-      <div class="lang-option" onclick="setLang('zh')">中文</div>
-      <div class="lang-option" onclick="setLang('ja')">日本語</div>
+  <!-- Filter (independent) -->
+  <div id="filter-panel">
+    <div class="filter-toggle btn-panel" id="filter-toggle" onclick="toggleFilter()">
+      <span>🔍 Filter</span>
+    </div>
+    <div class="filter-body" id="filter-body">
+      <input type="text" id="filter-input" placeholder="Callsign, route (e.g. PEK-SHA), type" oninput="applyFilter()">
+      <div class="filter-stats" id="filter-stats"></div>
+      <button class="filter-clear" id="btn-clear" onclick="clearFilter()">Clear</button>
     </div>
   </div>
 
-  <!-- Theme toggle -->
-  <div id="theme-toggle">
-    <button id="theme-btn" class="btn-panel" onclick="toggleTheme()">☀️</button>
+  <!-- Toolbar: lang + theme + 3D -->
+  <div id="toolbar">
+    <div id="lang-toggle">
+      <button id="lang-current" class="btn-panel" onclick="toggleLangDropdown()">English</button>
+      <div id="lang-dropdown">
+        <div class="lang-option" onclick="setLang('en')">English</div>
+        <div class="lang-option" onclick="setLang('zh')">中文</div>
+        <div class="lang-option" onclick="setLang('ja')">日本語</div>
+      </div>
+    </div>
+    <div id="theme-toggle">
+      <button id="theme-btn" class="btn-panel" onclick="toggleTheme()">☀️</button>
+    </div>
+    <div id="btn-3d-wrap">
+      <button id="btn-3d" class="btn-panel" onclick="toggle3D()">3D</button>
+    </div>
   </div>
 
-  <!-- 3D toggle -->
-  <div id="btn-3d-wrap">
-    <button id="btn-3d" class="btn-panel" onclick="toggle3D()">3D</button>
-  </div>
+
+
+
 
   <!-- Stats bar -->
   <div id="stats-bar">

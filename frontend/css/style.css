@@ -86,7 +86,7 @@ body {
 #filter-panel {
   position: absolute;
   top: 12px;
-  right: 180px;
+  right: 200px;
   z-index: 10;
 }
 /* Shared panel button */
@@ -116,10 +116,8 @@ body {
 .filter-toggle:hover { }
 .filter-body {
   display: none;
-  margin-top: 8px;
-  padding: 12px;
 }
-.filter-body.open { display: block; }
+.filter-body.open { display: block; animation: fadeIn 0.15s ease; }
 #filter-panel.expanded {
   background: rgba(12, 12, 20, 0.94);
   backdrop-filter: blur(12px);
@@ -127,7 +125,7 @@ body {
   border-radius: 10px;
   border: 1px solid rgba(79, 195, 247, 0.15);
   box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-  padding: 10px 12px;
+  padding: 10px 14px;
 }
 #filter-panel.expanded .filter-toggle {
   background: none;
@@ -135,9 +133,11 @@ body {
   box-shadow: none;
   padding: 0;
   height: auto;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
-.filter-body.open { display: block; animation: fadeIn 0.15s ease; }
+#filter-panel.expanded .filter-body {
+  padding: 0;
+}
 .filter-body input {
   width: 240px;
   padding: 8px 12px;
@@ -220,27 +220,28 @@ body {
   box-shadow: 0 0 4px currentColor;
 }
 
-/* Language selector */
-#lang-toggle {
-  position: absolute;
-  top: 12px;
-  right: 136px;
-  z-index: 10;
-}
-
-#theme-toggle {
-  position: absolute;
-  top: 12px;
-  right: 52px;
-  z-index: 10;
-}
-#theme-btn { width: 36px; padding: 0; font-size: 16px; }
-
-#btn-3d-wrap {
+/* Toolbar - top right button group */
+#toolbar {
   position: absolute;
   top: 12px;
   right: 12px;
   z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#lang-toggle {
+  position: relative;
+}
+
+#theme-toggle {
+  position: relative;
+}
+#theme-btn { width: 36px; padding: 0; font-size: 16px; }
+
+#btn-3d-wrap {
+  position: relative;
 }
 #btn-3d { width: 36px; padding: 0; font-size: 12px; font-weight: 700; }
 #btn-3d.active { background: rgba(79, 195, 247, 0.3); border-color: #4fc3f7; color: #4fc3f7; }

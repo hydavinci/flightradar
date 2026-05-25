@@ -77,7 +77,14 @@ function computeGreatCircle(lat1, lon1, lat2, lon2, numPoints) {
     const x = A * Math.cos(φ1) * Math.cos(λ1) + B * Math.cos(φ2) * Math.cos(λ2);
     const y = A * Math.cos(φ1) * Math.sin(λ1) + B * Math.cos(φ2) * Math.sin(λ2);
     const z = A * Math.sin(φ1) + B * Math.sin(φ2);
-    coords.push([toDeg(Math.atan2(y, x)), toDeg(Math.atan2(z, Math.sqrt(x * x + y * y)))]);
+    let lon = toDeg(Math.atan2(y, x));
+    const lat = toDeg(Math.atan2(z, Math.sqrt(x * x + y * y)));
+    coords.push([lon, lat]);
+  }
+  // Normalize longitudes to avoid wrapping: keep consecutive points within 180° of each other
+  for (let i = 1; i < coords.length; i++) {
+    while (coords[i][0] - coords[i-1][0] > 180) coords[i][0] -= 360;
+    while (coords[i][0] - coords[i-1][0] < -180) coords[i][0] += 360;
   }
   return coords;
 }
