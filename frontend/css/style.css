@@ -68,12 +68,14 @@ body {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
-#flight-detail .close-btn {
+#flight-detail .close-btn,
+#airport-detail .close-btn {
   position: absolute; top: 8px; right: 12px;
   background: none; border: none; color: #666; font-size: 16px; cursor: pointer;
   transition: color 0.15s;
 }
-#flight-detail .close-btn:hover { color: #fff; }
+#flight-detail .close-btn:hover,
+#airport-detail .close-btn:hover { color: #fff; }
 .detail-header { margin-bottom: 12px; }
 .detail-callsign { font-size: 18px; font-weight: 700; color: #4fc3f7; }
 .detail-subtitle { font-size: 12px; color: #999; margin-top: 2px; }
@@ -417,3 +419,33 @@ body {
 
 /* Night shadow */
 #night-shadow { mix-blend-mode: multiply; }
+
+/* Airport detail panel - same style as flight-detail */
+#airport-detail {
+  position: absolute;
+  z-index: 20;
+  background: rgba(12, 12, 20, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(79, 195, 247, 0.25);
+  border-radius: 14px;
+  color: #e0e0e0;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  padding: 16px 20px;
+  min-width: 280px;
+  max-width: 340px;
+  display: none;
+  pointer-events: auto;
+  max-height: 400px;
+  overflow-y: auto;
+}
+#airport-detail.visible {
+  display: block;
+  animation: fadeIn 0.2s ease;
+}
+.theme-light #airport-detail {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #333;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+}

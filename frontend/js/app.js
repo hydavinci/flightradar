@@ -55,6 +55,8 @@ let aircraft = [];
 let aircraftMap = new Map();
 let filteredAircraft = [];
 let selectedIcao = null;
+let detailAnchor = null;
+let airportAnchor = null;
 let wsConnected = false;
 let filterText = '';
 let airportsData = []; // [iata, name, city, lat, lon]
@@ -278,10 +280,27 @@ map.on('load', () => {
     }
   });
 
-  // Click elsewhere to deselect
+  // Global click: handle aircraft, airports, or close panels
   map.on('click', (e) => {
-    const features = map.queryRenderedFeatures(e.point, { layers: ['aircraft-layer'] });
-    if (features.length === 0) closeDetail();
+    // Check aircraft first
+    const aircraftFeatures = map.queryRenderedFeatures(e.point, { layers: ['aircraft-layer'] });
+    if (aircraftFeatures.length > 0) {
+      return; // handled by aircraft-layer click above
+    }
+    
+    // Check airports
+    let airportFeatures = [];
+    try { airportFeatures = map.queryRenderedFeatures(e.point, { layers: ['airports-hit'] }); } catch(err) {}
+    if (airportFeatures.length > 0) {
+      const f = airportFeatures[0].properties;
+      const coords = airportFeatures[0].geometry.coordinates;
+      showAirportDetail(f.iata, f.name, f.city, { lng: coords[0], lat: coords[1] });
+      return;
+    }
+    
+    // Nothing clicked - close all panels
+    closeDetail();
+    closeAirportDetail();
   });
 
   // Cursor + hover tooltip
@@ -367,6 +386,7 @@ function selectFlight(icao24) {
     closeDetail();
     return;
   }
+  closeAirportDetail();
   selectedIcao = icao24;
   const f = aircraftMap.get(icao24);
   if (f) {
@@ -422,6 +442,7 @@ function showDetail(f) {
 
 function positionDetail(f) {
   if (!f || !f.lat || !f.lon) return;
+  detailAnchor = { lng: f.lon, lat: f.lat };
   const panel = document.getElementById('flight-detail');
   const point = map.project([f.lon, f.lat]);
   const mapRect = map.getContainer().getBoundingClientRect();
@@ -461,6 +482,7 @@ function closeDetail() {
   panel.style.display = 'none';
   panel.className = '';
   selectedIcao = null;
+  detailAnchor = null;
   map.getSource('trail')?.setData({ type: 'FeatureCollection', features: [] });
   map.getSource('route-arc')?.setData({ type: 'FeatureCollection', features: [] });
   updateMap();
@@ -468,9 +490,23 @@ function closeDetail() {
 
 // Reposition on map move
 map.on('move', () => {
-  if (selectedIcao) {
-    const f = aircraftMap.get(selectedIcao);
-    if (f) positionDetail(f);
+  if (detailAnchor) {
+    const panel = document.getElementById('flight-detail');
+    if (panel.style.display === 'block') {
+      const point = map.project([detailAnchor.lng, detailAnchor.lat]);
+      const mapRect = map.getContainer().getBoundingClientRect();
+      let left = point.x + 20;
+      let top = point.y - 20;
+      const panelW = 320, panelH = 300;
+      if (left + panelW > mapRect.width) left = point.x - panelW - 20;
+      if (top + panelH > mapRect.height) top = mapRect.height - panelH - 10;
+      if (top < 10) top = 10;
+      panel.style.left = left + 'px';
+      panel.style.top = top + 'px';
+    }
+  }
+  if (airportAnchor) {
+    positionAirportPanel();
   }
 });
 
@@ -641,6 +677,21 @@ async function loadAirports() {
     };
 
     map.addSource('airports', { type: 'geojson', data: geojson });
+
+    // Invisible circle for click hit area
+    map.addLayer({
+      id: 'airports-hit',
+      type: 'circle',
+      source: 'airports',
+      minzoom: 4,
+      paint: {
+        'circle-radius': 12,
+        'circle-color': 'transparent',
+        'circle-stroke-width': 0
+      }
+    });
+
+    // Visible text label
     map.addLayer({
       id: 'airports-layer',
       type: 'symbol',
@@ -661,17 +712,9 @@ async function loadAirports() {
       }
     });
 
-    // Airport click - show detail + departure/arrival board
-    map.on('click', 'airports-layer', (e) => {
-      if (e.features.length > 0) {
-        const f = e.features[0].properties;
-        showAirportDetail(f.iata, f.name, f.city, e.lngLat);
-      }
-    });
-
     // Airport hover cursor
-    map.on('mouseenter', 'airports-layer', () => { map.getCanvas().style.cursor = 'pointer'; });
-    map.on('mouseleave', 'airports-layer', () => { map.getCanvas().style.cursor = ''; });
+    map.on('mouseenter', 'airports-hit', () => { map.getCanvas().style.cursor = 'pointer'; });
+    map.on('mouseleave', 'airports-hit', () => { map.getCanvas().style.cursor = ''; });
   } catch (e) {
     console.error('Failed to load airports:', e);
   }
@@ -798,48 +841,51 @@ async function loadPlanePhoto(icao24, reg) {
 
 // --- 3D terrain toggle ---
 // --- Airport detail + departure/arrival board ---
+
 function showAirportDetail(iata, name, city, lngLat) {
-  // Close any existing flight detail
-  closeDetail();
+  closeAirportDetail();
   
-  // Find flights departing from / arriving at this airport
   const departures = aircraft.filter(a => a.origin === iata);
   const arrivals = aircraft.filter(a => a.destination === iata);
 
-  const panel = document.getElementById('flight-detail');
-  
-  // Build content
-  let gridHTML = `<div class="detail-header"><div><div class="detail-callsign">🏢 ${iata}</div><div class="detail-subtitle">${name} · ${city}</div></div></div>`;
+  let html = `<div class="detail-callsign">🏢 ${iata}</div>`;
+  html += `<div class="detail-subtitle">${name} · ${city}</div>`;
   
   if (departures.length > 0) {
-    gridHTML += `<div class="board-section"><div class="board-title">✈️ Departures (${departures.length})</div>`;
+    html += `<div class="board-section"><div class="board-title">✈️ Departures (${departures.length})</div>`;
     departures.slice(0, 8).forEach(a => {
-      gridHTML += `<div class="board-row"><span class="board-flight">${a.callsign || a.icao24}</span><span class="board-dest">→ ${a.destination || '?'}</span><span class="board-alt">${a.altitude ? a.altitude.toLocaleString() + ' ft' : 'GND'}</span></div>`;
+      html += `<div class="board-row"><span class="board-flight">${a.callsign || a.icao24}</span><span class="board-dest">→ ${a.destination || '?'}</span><span class="board-alt">${a.altitude ? a.altitude.toLocaleString() + ' ft' : 'GND'}</span></div>`;
     });
-    if (departures.length > 8) gridHTML += `<div class="board-more">+${departures.length - 8} more</div>`;
-    gridHTML += `</div>`;
+    if (departures.length > 8) html += `<div class="board-more">+${departures.length - 8} more</div>`;
+    html += `</div>`;
   }
 
   if (arrivals.length > 0) {
-    gridHTML += `<div class="board-section"><div class="board-title">🛬 Arrivals (${arrivals.length})</div>`;
+    html += `<div class="board-section"><div class="board-title">🛬 Arrivals (${arrivals.length})</div>`;
     arrivals.slice(0, 8).forEach(a => {
-      gridHTML += `<div class="board-row"><span class="board-flight">${a.callsign || a.icao24}</span><span class="board-dest">← ${a.origin || '?'}</span><span class="board-alt">${a.altitude ? a.altitude.toLocaleString() + ' ft' : 'GND'}</span></div>`;
+      html += `<div class="board-row"><span class="board-flight">${a.callsign || a.icao24}</span><span class="board-dest">← ${a.origin || '?'}</span><span class="board-alt">${a.altitude ? a.altitude.toLocaleString() + ' ft' : 'GND'}</span></div>`;
     });
-    if (arrivals.length > 8) gridHTML += `<div class="board-more">+${arrivals.length - 8} more</div>`;
-    gridHTML += `</div>`;
+    if (arrivals.length > 8) html += `<div class="board-more">+${arrivals.length - 8} more</div>`;
+    html += `</div>`;
   }
 
   if (departures.length === 0 && arrivals.length === 0) {
-    gridHTML += `<div class="board-empty">No tracked flights</div>`;
+    html += `<div class="board-empty">No tracked flights</div>`;
   }
 
-  // Reuse flight-detail panel
-  panel.innerHTML = `<button class="close-btn" onclick="closeDetail()">✕</button>${gridHTML}`;
+  const panel = document.getElementById('airport-detail');
+  document.getElementById('airport-content').innerHTML = html;
   panel.className = 'visible';
   panel.style.display = 'block';
 
-  // Position like flight detail
-  const point = map.project(lngLat);
+  airportAnchor = { lng: lngLat.lng, lat: lngLat.lat };
+  positionAirportPanel();
+}
+
+function positionAirportPanel() {
+  if (!airportAnchor) return;
+  const panel = document.getElementById('airport-detail');
+  const point = map.project([airportAnchor.lng, airportAnchor.lat]);
   const mapRect = map.getContainer().getBoundingClientRect();
   let left = point.x + 20;
   let top = point.y - 20;
@@ -849,6 +895,15 @@ function showAirportDetail(iata, name, city, lngLat) {
   if (top < 10) top = 10;
   panel.style.left = left + 'px';
   panel.style.top = top + 'px';
+}
+
+function closeAirportDetail() {
+  const panel = document.getElementById('airport-detail');
+  if (panel) {
+    panel.style.display = 'none';
+    panel.className = '';
+  }
+  airportAnchor = null;
 }
 
 // --- Night shadow overlay ---
@@ -933,6 +988,7 @@ function getAirlineLogo(icaoCode) {
 }
 
 window.closeDetail = closeDetail;
+window.closeAirportDetail = closeAirportDetail;
 window.toggleFilter = toggleFilter;
 window.applyFilter = applyFilter;
 window.clearFilter = clearFilter;
