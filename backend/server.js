@@ -197,6 +197,14 @@ function broadcast(data) {
 // --- Data fetching loop (non-overlapping) ---
 let fetchCount = 0;
 let isFetching = false;
+const FETCH_LOOP_TIMEOUT_MS = 30000;
+
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms))
+  ]);
+}
 
 async function fetchLoop() {
   if (isFetching) return;
@@ -205,7 +213,7 @@ async function fetchLoop() {
   fetchCount++;
 
   try {
-    const flights = await fetchAllSources();
+    const flights = await withTimeout(fetchAllSources(), FETCH_LOOP_TIMEOUT_MS, 'fetchAllSources');
     cache.update(flights);
 
     // Batch write trails to Redis (only for aircraft with valid positions)
