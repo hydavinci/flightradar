@@ -61,6 +61,25 @@ let wsConnected = false;
 let filterText = '';
 let airportsData = []; // [iata, name, city, lat, lon]
 
+function escapeHTML(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[ch]));
+}
+
+function safeHttpsUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' ? url.href : '';
+  } catch {
+    return '';
+  }
+}
+
 // --- Precomputed plane image for WebGL ---
 const PLANE_IMG_SIZE = 48;
 const PLANE_COLORS = {
@@ -406,10 +425,14 @@ function showDetail(f) {
   const logoEl = document.getElementById('detail-logo');
   if (logoEl) {
     const airlineCode = f.airline || (f.callsign ? f.callsign.slice(0, 3) : '');
-    if (airlineCode) {
-      logoEl.innerHTML = `<img src="${getAirlineLogo(airlineCode)}" onerror="this.style.display='none'" alt="">`;
-    } else {
-      logoEl.innerHTML = '';
+    const logoUrl = getAirlineLogo(airlineCode);
+    logoEl.replaceChildren();
+    if (logoUrl) {
+      const img = new Image();
+      img.src = logoUrl;
+      img.alt = '';
+      img.onerror = () => { img.style.display = 'none'; };
+      logoEl.appendChild(img);
     }
   }
   document.getElementById('detail-subtitle').textContent =
@@ -636,7 +659,7 @@ function updateStatsBar() {
     const bounds = map.getBounds();
     let inView = 0;
     for (const a of aircraft) {
-      if (a.lat && a.lon && bounds.contains([a.lat, a.lon])) inView++;
+      if (a.lat && a.lon && bounds.contains([a.lon, a.lat])) inView++;
     }
     const avgAlt = aircraft.reduce((sum, a) => sum + (a.altitude || 0), 0) / (aircraft.length || 1);
     document.getElementById('stats-content').textContent =
@@ -800,8 +823,8 @@ function showSuggestions(suggestions) {
     <div class="suggestion-item" onclick="selectSuggestion(${i})">
       <span class="suggestion-icon">${s.type === 'flight' ? '✈' : '🏢'}</span>
       <span class="suggestion-text">
-        <span class="suggestion-label">${s.label}</span>
-        ${s.sublabel ? `<span class="suggestion-sub">${s.sublabel}</span>` : ''}
+        <span class="suggestion-label">${escapeHTML(s.label)}</span>
+        ${s.sublabel ? `<span class="suggestion-sub">${escapeHTML(s.sublabel)}</span>` : ''}
       </span>
     </div>
   `).join('');
@@ -825,16 +848,21 @@ function selectSuggestion(index) {
 async function loadPlanePhoto(icao24, reg) {
   const photoEl = document.getElementById('detail-photo');
   if (!photoEl) return;
-  photoEl.innerHTML = '';
+  photoEl.replaceChildren();
   try {
-    const query = reg || icao24;
-    const resp = await fetch(`https://api.planespotters.net/pub/photos/hex/${icao24}`, {
+    const resp = await fetch(`https://api.planespotters.net/pub/photos/hex/${encodeURIComponent(icao24)}`, {
       headers: { 'User-Agent': 'FlightRadar/1.0 (https://flightradar.graymammoth.com)' }
     });
     const data = await resp.json();
     if (data.photos && data.photos.length > 0) {
       const photo = data.photos[0];
-      photoEl.innerHTML = `<img src="${photo.thumbnail_large.src}" alt="${photo.photographer}" title="© ${photo.photographer}">`;
+      const src = safeHttpsUrl(photo.thumbnail_large?.src);
+      if (!src) return;
+      const img = new Image();
+      img.src = src;
+      img.alt = String(photo.photographer || 'Aircraft photo');
+      img.title = `© ${photo.photographer || 'planespotters.net'}`;
+      photoEl.appendChild(img);
     }
   } catch (e) {}
 }
@@ -848,13 +876,13 @@ function showAirportDetail(iata, name, city, lngLat) {
   const departures = aircraft.filter(a => a.origin === iata);
   const arrivals = aircraft.filter(a => a.destination === iata);
 
-  let html = `<div class="detail-callsign">🏢 ${iata}</div>`;
-  html += `<div class="detail-subtitle">${name} · ${city}</div>`;
+  let html = `<div class="detail-callsign">🏢 ${escapeHTML(iata)}</div>`;
+  html += `<div class="detail-subtitle">${escapeHTML(name)} · ${escapeHTML(city)}</div>`;
   
   if (departures.length > 0) {
     html += `<div class="board-section"><div class="board-title">✈️ Departures (${departures.length})</div>`;
     departures.slice(0, 8).forEach(a => {
-      html += `<div class="board-row"><span class="board-flight">${a.callsign || a.icao24}</span><span class="board-dest">→ ${a.destination || '?'}</span><span class="board-alt">${a.altitude ? a.altitude.toLocaleString() + ' ft' : 'GND'}</span></div>`;
+      html += `<div class="board-row"><span class="board-flight">${escapeHTML(a.callsign || a.icao24)}</span><span class="board-dest">→ ${escapeHTML(a.destination || '?')}</span><span class="board-alt">${a.altitude ? a.altitude.toLocaleString() + ' ft' : 'GND'}</span></div>`;
     });
     if (departures.length > 8) html += `<div class="board-more">+${departures.length - 8} more</div>`;
     html += `</div>`;
@@ -863,7 +891,7 @@ function showAirportDetail(iata, name, city, lngLat) {
   if (arrivals.length > 0) {
     html += `<div class="board-section"><div class="board-title">🛬 Arrivals (${arrivals.length})</div>`;
     arrivals.slice(0, 8).forEach(a => {
-      html += `<div class="board-row"><span class="board-flight">${a.callsign || a.icao24}</span><span class="board-dest">← ${a.origin || '?'}</span><span class="board-alt">${a.altitude ? a.altitude.toLocaleString() + ' ft' : 'GND'}</span></div>`;
+      html += `<div class="board-row"><span class="board-flight">${escapeHTML(a.callsign || a.icao24)}</span><span class="board-dest">← ${escapeHTML(a.origin || '?')}</span><span class="board-alt">${a.altitude ? a.altitude.toLocaleString() + ' ft' : 'GND'}</span></div>`;
     });
     if (arrivals.length > 8) html += `<div class="board-more">+${arrivals.length - 8} more</div>`;
     html += `</div>`;
@@ -982,9 +1010,9 @@ function drawNightShadow() {
 
 // --- Airline logo ---
 function getAirlineLogo(icaoCode) {
-  if (!icaoCode) return '';
-  // Use free logo from FlightAware's public assets or airline-logos github
-  return `https://content.airhex.com/content/logos/airlines_${icaoCode}_50_50_s.png`;
+  const code = String(icaoCode || '').trim().toUpperCase();
+  if (!/^[A-Z0-9]{2,4}$/.test(code)) return '';
+  return `https://content.airhex.com/content/logos/airlines_${code}_50_50_s.png`;
 }
 
 window.closeDetail = closeDetail;
