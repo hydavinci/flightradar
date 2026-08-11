@@ -14,27 +14,6 @@ app.use(compression());
 const server = createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
 
-function toFiniteNumber(value) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : null;
-}
-
-function clamp(n, min, max) {
-  return Math.min(Math.max(n, min), max);
-}
-
-function isValidLat(n) {
-  return n != null && n >= -90 && n <= 90;
-}
-
-function isValidLon(n) {
-  return n != null && n >= -180 && n <= 180;
-}
-
-function isValidIcao24(value) {
-  return /^[a-f0-9]{6}$/i.test(value || '');
-}
-
 // --- Static files ---
 app.use(express.static(path.join(__dirname, '../frontend'), {
   maxAge: '1h',
@@ -62,37 +41,25 @@ app.get('/api/flights', (req, res) => {
 });
 
 app.get('/api/trail/:icao24', async (req, res) => {
-  const icao24 = String(req.params.icao24 || '').toLowerCase();
-  if (!isValidIcao24(icao24)) {
-    return res.status(400).json({ error: 'Invalid ICAO24' });
-  }
-
   // Try Redis first, fallback to in-memory
   try {
-    const trail = await trailStore.getTrail(icao24);
+    const trail = await trailStore.getTrail(req.params.icao24);
     if (trail.length > 0) {
-      return res.json({ icao24, trail });
+      return res.json({ icao24: req.params.icao24, trail });
     }
   } catch (e) {}
   // Fallback to in-memory cache
-  const trail = cache.getTrail(icao24);
-  res.json({ icao24, trail });
+  const trail = cache.getTrail(req.params.icao24);
+  res.json({ icao24: req.params.icao24, trail });
 });
 
 // Great circle arc between two points
 app.get('/api/arc', (req, res) => {
-  const lat1 = toFiniteNumber(req.query.lat1);
-  const lon1 = toFiniteNumber(req.query.lon1);
-  const lat2 = toFiniteNumber(req.query.lat2);
-  const lon2 = toFiniteNumber(req.query.lon2);
-  const requestedPoints = toFiniteNumber(req.query.points) ?? 60;
-
-  if (!isValidLat(lat1) || !isValidLon(lon1) || !isValidLat(lat2) || !isValidLon(lon2)) {
-    return res.status(400).json({ error: 'Need valid lat1, lon1, lat2, lon2' });
+  const { lat1, lon1, lat2, lon2, points = 60 } = req.query;
+  if (!lat1 || !lon1 || !lat2 || !lon2) {
+    return res.status(400).json({ error: 'Need lat1, lon1, lat2, lon2' });
   }
-
-  const points = clamp(Math.round(requestedPoints), 2, 200);
-  const arc = computeGreatCircle(lat1, lon1, lat2, lon2, points);
+  const arc = computeGreatCircle(+lat1, +lon1, +lat2, +lon2, +points);
   res.json({ arc });
 });
 
@@ -159,12 +126,11 @@ wss.on('connection', (ws) => {
     try {
       const parsed = JSON.parse(msg);
       if (parsed.type === 'viewport') {
-        const lat = toFiniteNumber(parsed.lat);
-        const lon = toFiniteNumber(parsed.lon);
-        if (!isValidLat(lat) || !isValidLon(lon)) return;
-
-        const dist = clamp(toFiniteNumber(parsed.dist) ?? 250, 1, 250);
-        ws._viewport = { lat, lon, dist };
+        ws._viewport = {
+          lat: parsed.lat,
+          lon: parsed.lon,
+          dist: Math.min(parsed.dist || 250, 250)
+        };
       }
     } catch (e) {}
   });

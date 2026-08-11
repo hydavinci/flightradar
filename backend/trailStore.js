@@ -4,14 +4,7 @@
  */
 import Redis from 'ioredis';
 
-const redis = new Redis({
-  maxRetriesPerRequest: 3,
-  enableOfflineQueue: false
-});
-
-redis.on('error', (err) => {
-  console.error('[Redis]', err.message);
-});
+const redis = new Redis({ maxRetriesPerRequest: 3 });
 const TRAIL_PREFIX = 'trail:';
 const MAX_TRAIL_POINTS = 120; // ~20 min at 10s intervals
 const TRAIL_TTL = 3600; // expire trails after 1 hour of no updates
@@ -53,9 +46,7 @@ class TrailStore {
   async getTrail(icao24) {
     const key = TRAIL_PREFIX + icao24;
     const raw = await redis.lrange(key, 0, -1);
-    return raw.map(r => JSON.parse(r)).filter(p =>
-      p && Number.isFinite(p.lat) && Number.isFinite(p.lon)
-    );
+    return raw.map(r => JSON.parse(r));
   }
 
   /**
