@@ -1,6 +1,6 @@
 const CACHE_NAME = 'flightradar-v1';
 const TILE_CACHE = 'flightradar-tiles-v2';
-const STATIC_CACHE = 'flightradar-static-v3';
+const STATIC_CACHE = 'flightradar-static-v4';
 
 // Static assets to pre-cache
 const STATIC_ASSETS = [

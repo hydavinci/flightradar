@@ -32,7 +32,7 @@ const map = new maplibregl.Map({
         layout: { visibility: 'visible' },
         paint: {
           'raster-fade-duration': 0,
-          'raster-opacity': currentTheme === 'dark' ? 1 : 0
+          'raster-opacity': 1
         }
       },
       {
@@ -44,7 +44,7 @@ const map = new maplibregl.Map({
         layout: { visibility: 'visible' },
         paint: {
           'raster-fade-duration': 0,
-          'raster-opacity': currentTheme === 'light' ? 1 : 0
+          'raster-opacity': 1
         }
       }
     ]
@@ -218,6 +218,10 @@ map.on('load', () => {
       addPlaneImages();
     }
   });
+
+  // Ensure the selected base-map layer is on top while the other stays loaded
+  // underneath as a tile-gap fallback.
+  if (typeof applyTheme === 'function') applyTheme();
 
   // Aircraft source
   map.addSource('aircraft', {

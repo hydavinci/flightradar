@@ -137,18 +137,19 @@ function applyTheme() {
   document.body.className = theme.bodyClass;
   document.getElementById('theme-btn').textContent = currentTheme === 'dark' ? '☀️' : '🌙';
 
-  // Keep both raster layers visible and switch opacity only. Hidden raster
-  // layers do not keep tiles warm, which caused black checkerboard gaps during
-  // theme switching while the newly visible tiles were still loading.
+  // Keep both raster layers visible and opaque. Put the selected theme on top;
+  // the other theme stays underneath as a real map fallback for any missing
+  // tiles, avoiding blank/black checkerboard gaps during theme switching.
   if (typeof map !== 'undefined' && map.getLayer) {
     try {
-      if (map.getLayer('dark-layer')) {
+      if (map.getLayer('dark-layer') && map.getLayer('light-layer')) {
         map.setLayoutProperty('dark-layer', 'visibility', 'visible');
-        map.setPaintProperty('dark-layer', 'raster-opacity', currentTheme === 'dark' ? 1 : 0);
-      }
-      if (map.getLayer('light-layer')) {
         map.setLayoutProperty('light-layer', 'visibility', 'visible');
-        map.setPaintProperty('light-layer', 'raster-opacity', currentTheme === 'light' ? 1 : 0);
+        map.setPaintProperty('dark-layer', 'raster-opacity', 1);
+        map.setPaintProperty('light-layer', 'raster-opacity', 1);
+        const activeLayer = currentTheme === 'dark' ? 'dark-layer' : 'light-layer';
+        if (map.getLayer('aircraft-layer')) map.moveLayer(activeLayer, 'aircraft-layer');
+        else map.moveLayer(activeLayer);
       }
       if (typeof map.triggerRepaint === 'function') map.triggerRepaint();
     } catch(e) {}
