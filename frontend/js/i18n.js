@@ -137,11 +137,20 @@ function applyTheme() {
   document.body.className = theme.bodyClass;
   document.getElementById('theme-btn').textContent = currentTheme === 'dark' ? '☀️' : '🌙';
 
-  // Switch layer visibility (instant, no tile reload)
+  // Keep both raster layers visible and switch opacity only. Hidden raster
+  // layers do not keep tiles warm, which caused black checkerboard gaps during
+  // theme switching while the newly visible tiles were still loading.
   if (typeof map !== 'undefined' && map.getLayer) {
     try {
-      map.setLayoutProperty('dark-layer', 'visibility', currentTheme === 'dark' ? 'visible' : 'none');
-      map.setLayoutProperty('light-layer', 'visibility', currentTheme === 'light' ? 'visible' : 'none');
+      if (map.getLayer('dark-layer')) {
+        map.setLayoutProperty('dark-layer', 'visibility', 'visible');
+        map.setPaintProperty('dark-layer', 'raster-opacity', currentTheme === 'dark' ? 1 : 0);
+      }
+      if (map.getLayer('light-layer')) {
+        map.setLayoutProperty('light-layer', 'visibility', 'visible');
+        map.setPaintProperty('light-layer', 'raster-opacity', currentTheme === 'light' ? 1 : 0);
+      }
+      if (typeof map.triggerRepaint === 'function') map.triggerRepaint();
     } catch(e) {}
     // Re-add plane images in case they were lost
     if (typeof addPlaneImages === 'function') addPlaneImages();

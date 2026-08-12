@@ -29,8 +29,11 @@ const map = new maplibregl.Map({
         source: 'tiles-dark',
         minzoom: 0,
         maxzoom: 18,
-        layout: { visibility: currentTheme === 'dark' ? 'visible' : 'none' },
-        paint: { 'raster-fade-duration': 0 }
+        layout: { visibility: 'visible' },
+        paint: {
+          'raster-fade-duration': 0,
+          'raster-opacity': currentTheme === 'dark' ? 1 : 0
+        }
       },
       {
         id: 'light-layer',
@@ -38,8 +41,11 @@ const map = new maplibregl.Map({
         source: 'tiles-light',
         minzoom: 0,
         maxzoom: 18,
-        layout: { visibility: currentTheme === 'light' ? 'visible' : 'none' },
-        paint: { 'raster-fade-duration': 0 }
+        layout: { visibility: 'visible' },
+        paint: {
+          'raster-fade-duration': 0,
+          'raster-opacity': currentTheme === 'light' ? 1 : 0
+        }
       }
     ]
   },

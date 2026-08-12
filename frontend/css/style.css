@@ -6,7 +6,8 @@ body {
   overflow: hidden;
 }
 
-#map { width: 100vw; height: 100vh; }
+#map { width: 100vw; height: 100vh; background: #0a0a0f; }
+.theme-light #map { background: #eef3f5; }
 
 /* Info panel */
 #info-panel {
