@@ -14,6 +14,43 @@ app.use(compression());
 const server = createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
 
+// --- Tile proxy ---
+// Serve map tiles from the same origin and retry CARTO subdomains server-side.
+// This keeps the normal Voyager map style while avoiding partial client-side
+// tile loads from a single CDN edge/subdomain.
+app.get('/tile/voyager/:z/:x/:y.png', async (req, res) => {
+  const z = Number(req.params.z);
+  const x = Number(req.params.x);
+  const y = Number(req.params.y);
+  if (!Number.isInteger(z) || !Number.isInteger(x) || !Number.isInteger(y) || z < 0 || z > 18 || x < 0 || y < 0) {
+    return res.status(400).send('bad tile');
+  }
+
+  const hosts = ['a', 'b', 'c', 'd'];
+  const start = Math.abs((x + y + z) % hosts.length);
+  for (let i = 0; i < hosts.length; i++) {
+    const host = hosts[(start + i) % hosts.length];
+    const url = `https://${host}.basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}.png`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    try {
+      const upstream = await fetch(url, {
+        signal: controller.signal,
+        headers: { 'User-Agent': 'FlightRadarTileProxy/1.0' }
+      });
+      clearTimeout(timeout);
+      if (!upstream.ok) continue;
+      const body = Buffer.from(await upstream.arrayBuffer());
+      res.set('Content-Type', upstream.headers.get('content-type') || 'image/png');
+      res.set('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+      return res.send(body);
+    } catch (e) {
+      clearTimeout(timeout);
+    }
+  }
+  res.status(502).send('tile unavailable');
+});
+
 // --- Static files ---
 app.use(express.static(path.join(__dirname, '../frontend'), {
   maxAge: '1h',

@@ -113,12 +113,9 @@ const THEMES = {
     label: { en: '🌙', zh: '🌙', ja: '🌙' }
   },
   light: {
-    tiles: [
-      'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-      'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-      'https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-      'https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png'
-    ],
+    // Same-origin tile proxy retries CARTO Voyager subdomains server-side,
+    // preserving the normal map while reducing incomplete tile loads.
+    tiles: ['/tile/voyager/{z}/{x}/{y}.png'],
     bodyClass: 'theme-light',
     label: { en: '☀️', zh: '☀️', ja: '☀️' }
   }
@@ -137,19 +134,18 @@ function applyTheme() {
   document.body.className = theme.bodyClass;
   document.getElementById('theme-btn').textContent = currentTheme === 'dark' ? '☀️' : '🌙';
 
-  // Keep both raster layers visible and opaque. Put the selected theme on top;
-  // the other theme stays underneath as a real map fallback for any missing
-  // tiles, avoiding blank/black checkerboard gaps during theme switching.
+  // Keep both raster layers loaded, but hide the inactive one. Showing both
+  // opaque layers can reveal dark tiles under missing light tiles, producing
+  // black map blocks. A light page should fall back to the light #map background,
+  // not the dark basemap.
   if (typeof map !== 'undefined' && map.getLayer) {
     try {
       if (map.getLayer('dark-layer') && map.getLayer('light-layer')) {
+        const isDark = currentTheme === 'dark';
         map.setLayoutProperty('dark-layer', 'visibility', 'visible');
         map.setLayoutProperty('light-layer', 'visibility', 'visible');
-        map.setPaintProperty('dark-layer', 'raster-opacity', 1);
-        map.setPaintProperty('light-layer', 'raster-opacity', 1);
-        const activeLayer = currentTheme === 'dark' ? 'dark-layer' : 'light-layer';
-        if (map.getLayer('aircraft-layer')) map.moveLayer(activeLayer, 'aircraft-layer');
-        else map.moveLayer(activeLayer);
+        map.setPaintProperty('dark-layer', 'raster-opacity', isDark ? 1 : 0);
+        map.setPaintProperty('light-layer', 'raster-opacity', isDark ? 0 : 1);
       }
       if (typeof map.triggerRepaint === 'function') map.triggerRepaint();
     } catch(e) {}

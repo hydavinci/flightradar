@@ -32,7 +32,7 @@ const map = new maplibregl.Map({
         layout: { visibility: 'visible' },
         paint: {
           'raster-fade-duration': 0,
-          'raster-opacity': 1
+          'raster-opacity': currentTheme === 'dark' ? 1 : 0
         }
       },
       {
@@ -44,7 +44,7 @@ const map = new maplibregl.Map({
         layout: { visibility: 'visible' },
         paint: {
           'raster-fade-duration': 0,
-          'raster-opacity': 1
+          'raster-opacity': currentTheme === 'light' ? 1 : 0
         }
       }
     ]
@@ -1010,5 +1010,5 @@ updateUI();
 
 // Register Service Worker
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(() => {});
+  navigator.serviceWorker.register('/sw.js?v=20260812-1619').catch(() => {});
 }
