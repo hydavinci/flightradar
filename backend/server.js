@@ -15,28 +15,29 @@ const server = createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
 
 // --- Tile proxy ---
-// Serve map tiles from the same origin and retry CARTO subdomains server-side.
-// This keeps the normal Voyager map style while avoiding partial client-side
-// tile loads from a single CDN edge/subdomain.
-app.get('/tile/voyager/:z/:x/:y.png', async (req, res) => {
+// Serve map tiles from the same origin. CARTO basemaps now watermark free
+// unauthenticated tiles with "API KEY REQUIRED", so use OpenStreetMap tiles
+// directly and keep a local/Cloudflare cache in front of clients.
+app.get('/tile/osm/:z/:x/:y.png', async (req, res) => {
   const z = Number(req.params.z);
   const x = Number(req.params.x);
   const y = Number(req.params.y);
-  if (!Number.isInteger(z) || !Number.isInteger(x) || !Number.isInteger(y) || z < 0 || z > 18 || x < 0 || y < 0) {
+  const maxIndex = 2 ** z;
+  if (!Number.isInteger(z) || !Number.isInteger(x) || !Number.isInteger(y) || z < 0 || z > 18 || x < 0 || y < 0 || x >= maxIndex || y >= maxIndex) {
     return res.status(400).send('bad tile');
   }
 
-  const hosts = ['a', 'b', 'c', 'd'];
+  const hosts = ['a', 'b', 'c'];
   const start = Math.abs((x + y + z) % hosts.length);
   for (let i = 0; i < hosts.length; i++) {
     const host = hosts[(start + i) % hosts.length];
-    const url = `https://${host}.basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}.png`;
+    const url = `https://${host}.tile.openstreetmap.org/${z}/${x}/${y}.png`;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
     try {
       const upstream = await fetch(url, {
         signal: controller.signal,
-        headers: { 'User-Agent': 'FlightRadarTileProxy/1.0' }
+        headers: { 'User-Agent': 'FlightRadar/1.0 (https://flightradar.graymammoth.com)' }
       });
       clearTimeout(timeout);
       if (!upstream.ok) continue;
@@ -55,8 +56,8 @@ app.get('/tile/voyager/:z/:x/:y.png', async (req, res) => {
 app.use(express.static(path.join(__dirname, '../frontend'), {
   maxAge: '1h',
   setHeaders: (res, filePath) => {
-    if (filePath.endsWith('.html')) {
-      res.setHeader('Cache-Control', 'no-cache');
+    if (filePath.endsWith('.html') || filePath.endsWith('sw.js')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     }
     if (filePath.endsWith('.pbf')) {
       res.setHeader('Content-Type', 'application/x-protobuf');

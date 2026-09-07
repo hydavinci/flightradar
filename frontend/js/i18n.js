@@ -103,19 +103,14 @@ const LANG_LABELS = {
 // --- Theme ---
 const THEMES = {
   dark: {
-    tiles: [
-      'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-      'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-      'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-      'https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
-    ],
+    // CARTO basemaps started returning "API KEY REQUIRED" watermarked tiles.
+    // Use our same-origin OSM proxy instead; the dark layer is styled in app.js.
+    tiles: ['/tile/osm/{z}/{x}/{y}.png'],
     bodyClass: '',
     label: { en: '🌙', zh: '🌙', ja: '🌙' }
   },
   light: {
-    // Same-origin tile proxy retries CARTO Voyager subdomains server-side,
-    // preserving the normal map while reducing incomplete tile loads.
-    tiles: ['/tile/voyager/{z}/{x}/{y}.png'],
+    tiles: ['/tile/osm/{z}/{x}/{y}.png'],
     bodyClass: 'theme-light',
     label: { en: '☀️', zh: '☀️', ja: '☀️' }
   }

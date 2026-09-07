@@ -1,6 +1,6 @@
 const CACHE_NAME = 'flightradar-v1';
-const TILE_CACHE = 'flightradar-tiles-v2';
-const STATIC_CACHE = 'flightradar-static-v18';
+const TILE_CACHE = 'flightradar-tiles-v4';
+const STATIC_CACHE = 'flightradar-static-v25';
 
 // Static assets to pre-cache
 const STATIC_ASSETS = [
@@ -18,6 +18,12 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 // Activate: clean old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
@@ -33,7 +39,8 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
   // Map tiles: cache-first (tiles rarely change)
-  if (url.hostname.includes('basemaps.cartocdn.com') ||
+  if (url.pathname.startsWith('/tile/') ||
+      url.hostname.includes('basemaps.cartocdn.com') ||
       url.hostname.includes('tile.openstreetmap.org') ||
       url.hostname.includes('tiles.mapbox.com')) {
     event.respondWith(tileStrategy(event.request));

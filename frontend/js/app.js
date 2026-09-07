@@ -32,7 +32,11 @@ const map = new maplibregl.Map({
         layout: { visibility: 'visible' },
         paint: {
           'raster-fade-duration': 0,
-          'raster-opacity': currentTheme === 'dark' ? 1 : 0
+          'raster-opacity': currentTheme === 'dark' ? 1 : 0,
+          'raster-brightness-min': 0,
+          'raster-brightness-max': 0.32,
+          'raster-saturation': -0.85,
+          'raster-contrast': 0.35
         }
       },
       {
@@ -632,7 +636,22 @@ function sendViewport() {
   }
 }
 
+let isClampingHorizontalPan = false;
+
+function clampHorizontalPan() {
+  if (isClampingHorizontalPan) return;
+  const center = map.getCenter();
+  const clampedLng = Math.max(-180, Math.min(180, center.lng));
+  if (Math.abs(clampedLng - center.lng) > 1e-6) {
+    isClampingHorizontalPan = true;
+    map.jumpTo({ center: [clampedLng, center.lat] });
+    isClampingHorizontalPan = false;
+  }
+}
+
+map.on('move', clampHorizontalPan);
 map.on('moveend', () => {
+  clampHorizontalPan();
   clearTimeout(window._vpTimer);
   window._vpTimer = setTimeout(sendViewport, 600);
 });
@@ -1010,5 +1029,10 @@ updateUI();
 
 // Register Service Worker
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js?v=20260812-1619').catch(() => {});
+  navigator.serviceWorker.register('/sw.js?v=20260907-0235').then(reg => {
+    // If an old Service Worker/tile cache was serving stale third-party map
+    // tiles, activate the fresh worker promptly so the same-origin CARTO tile
+    // proxy takes over without requiring users to clear site data manually.
+    if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+  }).catch(() => {});
 }
