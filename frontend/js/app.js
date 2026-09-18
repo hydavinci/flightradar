@@ -1086,7 +1086,7 @@ updateUI();
 
 // Register Service Worker
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js?v=20260918-en-zh-only').then(reg => {
+  navigator.serviceWorker.register('/sw.js?v=20260918-osm-en-zh').then(reg => {
     // If an old Service Worker/tile cache was serving stale third-party map
     // tiles, activate the fresh worker promptly so the same-origin CARTO tile
     // proxy takes over without requiring users to clear site data manually.

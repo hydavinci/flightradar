@@ -338,7 +338,7 @@ body {
 .theme-light #info-panel,
 .theme-light #flight-detail,
 .theme-light .filter-toggle,
-.theme-light .filter-body,
+.theme-light #filter-panel.expanded,
 .theme-light #lang-dropdown,
 .theme-light #stats-bar,
 .theme-light #legend {
@@ -353,6 +353,15 @@ body {
   color: #333;
 }
 .theme-light .btn-panel:hover { border-color: rgba(0,0,0,0.3); }
+/* The expanded filter is one panel, not light controls inside a dark shell. */
+.theme-light #filter-panel.expanded .filter-toggle,
+.theme-light #filter-panel.expanded .filter-body {
+  background: transparent;
+  box-shadow: none;
+  color: #333;
+}
+.theme-light .filter-clear:hover { background: rgba(0,0,0,0.1); }
+.theme-light .filter-body input:focus { border-color: #1565c0; }
 .theme-light #info-panel h3 { color: #222; }
 .theme-light #info-panel .stat-value { color: #1565c0; }
 .theme-light #status-dot { background: #43a047; box-shadow: 0 0 4px rgba(67,160,71,0.5); }
@@ -367,7 +376,7 @@ body {
   border-color: rgba(0,0,0,0.15);
   color: #333;
 }
-.theme-light .filter-body input::placeholder { color: #999; }
+.theme-light .filter-body input::placeholder { color: #666; }
 .theme-light .filter-stats { color: #666; }
 .theme-light .filter-clear { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.1); color: #555; }
 .theme-light .lang-option { color: #333; }
