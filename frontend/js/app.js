@@ -492,6 +492,7 @@ async function loadTrail(icao24) {
 }
 
 function closeDetail() {
+  photoRequestController?.abort();
   const panel = document.getElementById('flight-detail');
   panel.style.display = 'none';
   panel.className = '';
@@ -850,22 +851,78 @@ function selectSuggestion(index) {
   document.getElementById('search-suggestions').style.display = 'none';
 }
 
-// --- Plane photo (planespotters.net) ---
+// --- Plane photos: same-origin transport, safe DOM, cancellable selection ---
+let photoRequestController = null;
 async function loadPlanePhoto(icao24, reg) {
   const photoEl = document.getElementById('detail-photo');
   if (!photoEl) return;
-  photoEl.innerHTML = '';
-  try {
-    const query = reg || icao24;
-    const resp = await fetch(`https://api.planespotters.net/pub/photos/hex/${icao24}`, {
-      headers: { 'User-Agent': 'FlightRadar/1.0 (https://flightradar.graymammoth.com)' }
-    });
-    const data = await resp.json();
-    if (data.photos && data.photos.length > 0) {
-      const photo = data.photos[0];
-      photoEl.innerHTML = `<img src="${photo.thumbnail_large.src}" alt="${photo.photographer}" title="© ${photo.photographer}">`;
+  photoRequestController?.abort();
+  const controller = new AbortController();
+  photoRequestController = controller;
+  const current = () => photoRequestController === controller && !controller.signal.aborted;
+  const zh = typeof currentLang !== 'undefined' && currentLang === 'zh';
+  const placeholder = (text) => {
+    const label = document.createElement('div');
+    label.className = 'photo-placeholder';
+    label.textContent = text;
+    photoEl.replaceChildren(label);
+  };
+  placeholder(zh ? '照片加载中…' : 'Loading photo…');
+  const timeout = setTimeout(() => {
+    if (current()) {
+      placeholder(zh ? '照片暂不可用' : 'Photo unavailable');
+      controller.abort();
     }
-  } catch (e) {}
+  }, 15000);
+  try {
+    const resp = await fetch(`/api/photos/${encodeURIComponent(icao24)}${reg ? `?reg=${encodeURIComponent(reg)}` : ''}`, { signal: controller.signal });
+    if (!resp.ok) throw new Error('Photo lookup failed');
+    const data = await resp.json();
+    if (!current()) return;
+    // Try alternate size/photo before showing the compact unavailable state.
+    for (const photo of data.photos || []) {
+      for (const src of photo.sources || []) {
+        if (!/^\/api\/photo-image\/[0-9]+\/[A-Za-z0-9_-]+\.(jpg|jpeg|png|webp)$/.test(src)) continue;
+        if (!current()) return;
+        const img = new Image();
+        img.alt = reg || icao24.toUpperCase();
+        img.title = `© ${photo.photographer}`;
+        const loaded = await new Promise(resolve => {
+          const finish = (ok) => {
+            img.onload = img.onerror = null;
+            controller.signal.removeEventListener('abort', onAbort);
+            resolve(ok);
+          };
+          const onAbort = () => { img.removeAttribute('src'); finish(false); };
+          controller.signal.addEventListener('abort', onAbort, { once: true });
+          img.onload = () => finish(true);
+          img.onerror = () => finish(false);
+          img.src = src;
+        });
+        if (!current()) return;
+        if (!loaded) continue;
+        const credit = document.createElement('a');
+        credit.className = 'photo-credit';
+        const link = new URL(photo.link);
+        credit.href = link.origin === 'https://www.planespotters.net' ? link.href : 'https://www.planespotters.net';
+        credit.target = '_blank';
+        credit.rel = 'noopener noreferrer';
+        credit.textContent = `© ${photo.photographer} / Planespotters.net`;
+        const photoLink = document.createElement('a');
+        photoLink.href = credit.href;
+        photoLink.target = '_blank';
+        photoLink.rel = 'noopener noreferrer';
+        photoLink.append(img);
+        photoEl.replaceChildren(photoLink, credit);
+        return;
+      }
+    }
+    placeholder(zh ? '暂无飞机照片' : 'No aircraft photo available');
+  } catch {
+    if (current()) placeholder(zh ? '照片暂不可用' : 'Photo unavailable');
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 // --- 3D terrain toggle ---
@@ -1029,7 +1086,7 @@ updateUI();
 
 // Register Service Worker
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js?v=20260907-0235').then(reg => {
+  navigator.serviceWorker.register('/sw.js?v=20260918-en-zh-only').then(reg => {
     // If an old Service Worker/tile cache was serving stale third-party map
     // tiles, activate the fresh worker promptly so the same-origin CARTO tile
     // proxy takes over without requiring users to clear site data manually.

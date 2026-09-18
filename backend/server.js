@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { fetchAllSources, fetchForViewport, breakers } from './datasource.js';
 import cache from './cache.js';
 import trailStore from './trailStore.js';
+import { installPhotoRoutes } from './photos.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -67,6 +68,7 @@ app.use(express.static(path.join(__dirname, '../frontend'), {
 }));
 
 // --- API Routes ---
+installPhotoRoutes(app);
 app.get('/api/flights', (req, res) => {
   const data = cache.getAll();
   const etag = `"${data.timestamp}"`;

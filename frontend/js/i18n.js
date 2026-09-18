@@ -61,43 +61,12 @@ const LANG = {
     connecting: '连接中...',
     live: '实时',
     reconnecting: '重连中...'
-  },
-  ja: {
-    title: '✈️ フライトレーダー',
-    aircraft: '航空機',
-    filter: '🔍 フィルター',
-    filterPlaceholder: 'コールサイン、路線、機種',
-    clear: 'クリア',
-    altitude: '高度',
-    legendGround: '地上',
-    legendLow: '< 1,500 m',
-    legendMid: '1,500–7,600 m',
-    legendHigh: '7,600–10,700 m',
-    legendCruise: '> 10,700 m',
-    icao: 'ICAO',
-    type: '機種',
-    reg: '登録番号',
-    country: '国',
-    speed: '速度',
-    heading: '方位',
-    vs: '昇降率',
-    squawk: 'スコーク',
-    route: '路線',
-    tracked: '追跡中',
-    inView: '表示中',
-    avgAlt: '平均高度',
-    showing: '表示',
-    of: '/',
-    connecting: '接続中...',
-    live: 'ライブ',
-    reconnecting: '再接続中...'
   }
 };
 
 const LANG_LABELS = {
   en: 'English',
-  zh: '中文',
-  ja: '日本語'
+  zh: '中文'
 };
 
 // --- Theme ---
@@ -107,12 +76,12 @@ const THEMES = {
     // Use our same-origin OSM proxy instead; the dark layer is styled in app.js.
     tiles: ['/tile/osm/{z}/{x}/{y}.png'],
     bodyClass: '',
-    label: { en: '🌙', zh: '🌙', ja: '🌙' }
+    label: { en: '🌙', zh: '🌙' }
   },
   light: {
     tiles: ['/tile/osm/{z}/{x}/{y}.png'],
     bodyClass: 'theme-light',
-    label: { en: '☀️', zh: '☀️', ja: '☀️' }
+    label: { en: '☀️', zh: '☀️' }
   }
 };
 
@@ -150,13 +119,16 @@ function applyTheme() {
   }
 }
 
-let currentLang = localStorage.getItem('flightradar-lang') || 'en';
+const savedLang = localStorage.getItem('flightradar-lang');
+let currentLang = savedLang === null ? 'en' : (savedLang === 'en' || savedLang === 'zh' ? savedLang : 'zh');
+if (savedLang !== null && savedLang !== currentLang) localStorage.setItem('flightradar-lang', currentLang);
 
 function t(key) {
   return LANG[currentLang]?.[key] || LANG.en[key] || key;
 }
 
 function setLang(lang) {
+  if (lang !== 'en' && lang !== 'zh') return;
   currentLang = lang;
   localStorage.setItem('flightradar-lang', lang);
   updateUI();
